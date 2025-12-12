@@ -1,18 +1,32 @@
 [project]
-name = "ai-research-assistant"
+name = "research-assistant"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-    "chromadb>=1.3.6",
+    "arxiv>=2.3.1",
+    "beautifulsoup4>=4.14.3",
     "fastapi>=0.124.2",
+    "gpustat>=1.1.1",
     "langchain>=1.1.3",
     "langchain-community>=0.4.1",
+    "langchain-ollama>=1.0.0",
+    "langchain-text-splitters>=1.0.0",
+    "lxml>=6.0.2",
+    "prefect>=3.6.6",
+    "pydantic-settings>=2.12.0",
     "pymupdf>=1.26.6",
     "python-multipart>=0.0.20",
+    "qdrant-client>=1.16.1",
     "sentence-transformers>=5.1.2",
     "streamlit>=1.52.1",
     "torch>=2.9.1",
     "uvicorn>=0.38.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+    "pytest-asyncio>=1.3.0",
 ]

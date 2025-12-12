@@ -1,0 +1,80 @@
+# Prefect deployment configuration
+# Deploy with: prefect deploy --all
+
+name: research-assistant
+prefect-version: 3.0.0
+
+build: null
+push: null
+
+pull:
+  - prefect.deployments.steps.set_working_directory:
+      directory: /home/agape/Projects/ai-research-assistant
+
+deployments:
+  - name: full-pipeline
+    description: "Full paper collection and indexing pipeline"
+    entrypoint: src/workflows/orchestrator.py:full_pipeline_flow
+    work_pool:
+      name: default-agent-pool
+    parameters:
+      days_back: 30
+      max_per_query: 100
+      index_limit: 50
+      download_pdfs: true
+    tags:
+      - research
+      - pipeline
+
+  - name: daily-update
+    description: "Daily update - collect recent papers"
+    entrypoint: src/workflows/orchestrator.py:daily_update_flow
+    work_pool:
+      name: default-agent-pool
+    schedules:
+      - cron: "0 2 * * *"  # 2 AM daily
+        timezone: "UTC"
+        active: true
+    tags:
+      - research
+      - scheduled
+      - daily
+
+  - name: weekly-sync
+    description: "Weekly full synchronization"
+    entrypoint: src/workflows/orchestrator.py:weekly_full_sync_flow
+    work_pool:
+      name: default-agent-pool
+    schedules:
+      - cron: "0 3 * * 0"  # 3 AM Sunday
+        timezone: "UTC"
+        active: true
+    tags:
+      - research
+      - scheduled
+      - weekly
+
+  - name: collect-papers
+    description: "Paper collection only (no indexing)"
+    entrypoint: src/workflows/collection.py:collect_papers_flow
+    work_pool:
+      name: default-agent-pool
+    parameters:
+      max_per_query: 100
+      days_back: 365
+      download: true
+    tags:
+      - research
+      - collection
+
+  - name: index-papers
+    description: "Index unindexed papers into vector store"
+    entrypoint: src/workflows/indexing.py:index_papers_flow
+    work_pool:
+      name: default-agent-pool
+    parameters:
+      limit: 50
+      batch_size: 100
+    tags:
+      - research
+      - indexing

@@ -1,156 +1,249 @@
-# AI Research Assistant
+# Research Assistant
 
-An intelligent research assistant that helps users explore, query, and synthesize information from academic papers and technical documentation.
+A RAG-powered research assistant for exploring and querying academic papers from arXiv.
 
-## About This Project
+## About
 
-This project was built to demonstrate practical experience with modern GenAI/LLM technologies, including:
-- **RAG (Retrieval-Augmented Generation)** pipelines
-- **Vector databases** for semantic search
-- **LangChain/LangGraph** for LLM orchestration
-- **Agentic workflows** for autonomous research tasks
-
-As an AI Engineer with a background in computer vision and NLP, I built this to complement my production ML experience with hands-on GenAI application development.
+This project demonstrates practical experience with modern GenAI/LLM technologies:
+- **RAG pipelines** with inline citations and streaming responses
+- **Two-stage retrieval** with cross-encoder reranking (BAAI/bge-reranker-base)
+- **LLM-as-a-judge** for automated answer quality evaluation
+- **IR metrics** including MRR, NDCG, and Precision@K
+- **Vector databases** for semantic search (Qdrant)
+- **Workflow orchestration** with Prefect for automated paper collection
+- **Local LLM inference** via Ollama
+- **Full-stack development** with FastAPI backend and SvelteKit frontend
 
 **Author:** Jean Dié | [GitHub](https://github.com/agapestack) | [Email](mailto:jean.die@protonmail.com)
 
 ## Features
 
-- **Document Ingestion:** Pipeline supporting PDF, markdown, and web content
-- **Semantic Search:** Query research papers using vector similarity
-- **Conversational Q&A:** Chat interface with source citations
-- **Multi-document Analysis:** Summarization and comparison across papers
-- **Agent Workflows:** Automated literature review and fact-checking
+- **Automated Paper Collection:** Prefect workflows fetch papers from arXiv on schedule
+- **HTML-Based Ingestion:** Extract text from ar5iv (no PDF downloads required)
+- **Two-Stage Retrieval:** Vector search → cross-encoder reranking for precision
+- **RAG Q&A:** Ask questions and get answers with inline citations [1], [2]
+- **Answer Quality Evaluation:** LLM-as-a-judge scores every response automatically
+- **Retrieval Metrics:** MRR, NDCG, Precision@K computed per query
+- **Streaming Responses:** Real-time answer generation via SSE
+- **Multi-model Support:** Switch between Qwen3, Gemma, Mistral models
+- **Modern UI:** SvelteKit frontend with dark mode, follow-up suggestions
 
-## Technical Stack
+## Tech Stack
 
-| Component | Technology |
-|-----------|------------|
-| Orchestration | LangChain / LangGraph |
-| Vector Database | ChromaDB / Pinecone |
-| Embeddings | Sentence-Transformers / OpenAI |
-| LLM | GPT-4 / Claude / Mistral / Llama |
-| Backend | FastAPI (async) |
-| Frontend | Streamlit |
-| Infrastructure | Docker, GitHub Actions |
-| Observability | LangSmith / Weights & Biases |
+| Layer | Technology |
+|-------|------------|
+| Frontend | SvelteKit 5, Tailwind CSS |
+| Backend | FastAPI, SSE streaming |
+| Orchestration | Prefect (workflow automation) |
+| Vector DB | Qdrant |
+| Embeddings | sentence-transformers (all-MiniLM-L6-v2) |
+| Reranker | BAAI/bge-reranker-base (cross-encoder) |
+| LLM | Ollama (Qwen3-14B, Gemma3-12B, Mistral) |
+| Text Extraction | ar5iv HTML parsing (BeautifulSoup) |
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                      Streamlit UI                           │
-└─────────────────────────┬───────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                         Frontend                                 │
+│              SvelteKit + Tailwind (localhost:5173)              │
+└─────────────────────────┬───────────────────────────────────────┘
                           │
-┌─────────────────────────▼───────────────────────────────────┐
-│                    FastAPI Backend                          │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
-│  │   /ingest   │  │   /query    │  │      /agent         │  │
-│  └─────────────┘  └─────────────┘  └─────────────────────┘  │
-└─────────────────────────┬───────────────────────────────────┘
+┌─────────────────────────▼───────────────────────────────────────┐
+│                      FastAPI Backend                             │
+│  /query  /query/stream  /search  /index  /models  /stats        │
+└─────────────────────────┬───────────────────────────────────────┘
                           │
-┌─────────────────────────▼───────────────────────────────────┐
-│                   LangChain / LangGraph                     │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
-│  │  RAG Chain  │  │   Agents    │  │       Tools         │  │
-│  └─────────────┘  └─────────────┘  └─────────────────────┘  │
-└───────┬─────────────────┬───────────────────┬───────────────┘
-        │                 │                   │
-┌───────▼───────┐ ┌───────▼───────┐ ┌─────────▼─────────┐
-│  Vector DB    │ │     LLM       │ │   External APIs   │
-│  (ChromaDB)   │ │ (GPT/Claude)  │ │ (Arxiv, Web)      │
-└───────────────┘ └───────────────┘ └───────────────────┘
+┌─────────────────────────▼───────────────────────────────────────┐
+│                       RAG Pipeline                               │
+│  ┌────────────┐   ┌──────────┐   ┌───────────┐   ┌───────────┐ │
+│  │ Vector     │──▶│ Reranker │──▶│ LLM Gen   │──▶│ LLM Judge │ │
+│  │ Search     │   │ (BGE)    │   │ (Ollama)  │   │ (Eval)    │ │
+│  └────────────┘   └──────────┘   └───────────┘   └───────────┘ │
+│        │                │                              │        │
+│        ▼                ▼                              ▼        │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │  Metrics: MRR, NDCG, P@K  |  Scores: Relevance,         │   │
+│  │                           |  Faithfulness, Completeness │   │
+│  └─────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────┘
+                          │
+┌─────────────────────────▼───────────────────────────────────────┐
+│                    Prefect Workflows                             │
+│  collect-papers → index-papers → daily-update → weekly-sync     │
+└─────────────────────────────────────────────────────────────────┘
 ```
-
-## RAG Pipeline
-
-1. **Document Processing**
-   - PDF parsing with PyMuPDF
-   - Text chunking (recursive, semantic)
-   - Metadata extraction
-
-2. **Embedding & Indexing**
-   - Generate embeddings (sentence-transformers)
-   - Store in vector database with metadata
-   - Build hybrid index (dense + sparse)
-
-3. **Retrieval**
-   - Semantic search with similarity threshold
-   - Hybrid search (BM25 + vector)
-   - Reranking with cross-encoder
-
-4. **Generation**
-   - Context-aware prompt construction
-   - LLM response with citations
-   - Source verification
-
-## Agent Capabilities
-
-- **Literature Review Agent:** Searches arxiv, retrieves papers, summarizes findings
-- **Fact-Checking Agent:** Verifies claims against indexed documents
-- **Comparison Agent:** Analyzes differences between multiple papers
 
 ## Installation
 
 ```bash
-git clone https://github.com/agapestack/ai-research-assistant.git
-cd ai-research-assistant
-pip install -r requirements.txt
+git clone https://github.com/agapestack/research-assistant.git
+cd research-assistant
+
+# Install Python dependencies
+uv sync
+
+# Start infrastructure (Qdrant + Prefect)
+docker compose up -d
+
+# Pull an LLM model
+ollama pull qwen3:14b
+
+# Install frontend dependencies
+cd frontend && npm install && cd ..
 ```
 
-## Usage
+## Quick Start
 
+### 1. Collect Papers
 ```bash
-# Start the backend
-uvicorn app.main:app --reload
-
-# Start the UI
-streamlit run ui/app.py
+# Collect LLM/RAG papers from last 30 days
+uv run python scripts/run_flow.py collect --days 30 --max-per-query 50
 ```
 
-## Environment Variables
+### 2. Index Papers
+```bash
+# Index collected papers (fetches HTML from ar5iv)
+uv run python scripts/run_flow.py index --limit 20
+```
+
+### 3. Start the App
+```bash
+# Terminal 1: Backend
+uv run uvicorn src.main:app --reload
+
+# Terminal 2: Frontend
+cd frontend && npm run dev
+```
+
+Visit http://localhost:5173
+
+## API Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/query` | POST | RAG query with sources |
+| `/query/stream` | POST | Streaming RAG response (SSE) |
+| `/search` | POST | Semantic search only |
+| `/index` | POST | Index papers by topic |
+| `/followups` | POST | Generate follow-up questions |
+| `/models` | GET | List available LLM models |
+| `/stats` | GET | Vector store statistics |
+| `/health` | GET | Health check |
+
+## Prefect Workflows
 
 ```bash
-OPENAI_API_KEY=your_key_here
-# or
-ANTHROPIC_API_KEY=your_key_here
+# Run locally
+uv run python scripts/run_flow.py collect   # Collect papers
+uv run python scripts/run_flow.py index     # Index into vector store
+uv run python scripts/run_flow.py full      # Full pipeline
+uv run python scripts/run_flow.py daily     # Daily update preset
+uv run python scripts/run_flow.py weekly    # Weekly sync preset
+
+# With Prefect UI (http://localhost:4200)
+prefect work-pool create default-agent-pool --type process
+prefect deploy --all
+prefect worker start --pool default-agent-pool
+```
+
+## Configuration
+
+Environment variables (`.env`):
+
+```bash
+RAG_LLM_MODEL=qwen3:14b
+RAG_QDRANT_HOST=localhost
+RAG_QDRANT_PORT=6333
+RAG_RETRIEVAL_K=5
+RAG_LLM_TEMPERATURE=0.1
 ```
 
 ## Project Structure
 
 ```
-ai-research-assistant/
+research-assistant/
 ├── src/
-│   ├── main.py              # FastAPI application
-│   ├── routers/
-│   │   ├── ingest.py        # Document ingestion endpoints
-│   │   ├── query.py         # RAG query endpoints
-│   │   └── agent.py         # Agent endpoints
+│   ├── main.py                 # FastAPI application
+│   ├── config.py               # Settings (pydantic-settings)
 │   ├── services/
-│   │   ├── embeddings.py    # Embedding generation
-│   │   ├── vectorstore.py   # Vector DB operations
-│   │   ├── retriever.py     # Retrieval logic
-│   │   └── chains.py        # LangChain chains
-│   └── agents/
-│       ├── researcher.py    # Research agent
-│       └── tools.py         # Agent tools
-├── ui/
-│   └── app.py               # Streamlit interface
+│   │   ├── arxiv_fetcher.py    # arXiv API integration
+│   │   ├── html_fetcher.py     # ar5iv HTML fetching
+│   │   ├── document_loader.py  # Text extraction & chunking
+│   │   ├── vector_store.py     # Qdrant operations
+│   │   ├── reranker.py         # Cross-encoder reranking
+│   │   ├── evaluation.py       # LLM-as-judge + IR metrics
+│   │   └── rag_chain.py        # RAG chain with streaming
+│   └── workflows/
+│       ├── collection.py       # Paper collection flow
+│       ├── indexing.py         # HTML indexing flow
+│       └── orchestrator.py     # Combined pipelines
+├── frontend/
+│   ├── src/
+│   │   ├── routes/+page.svelte # Main chat interface
+│   │   └── lib/
+│   │       ├── api.ts          # API client
+│   │       └── components/     # UI components
+│   └── package.json
+├── scripts/
+│   ├── run_flow.py             # Prefect flow CLI
+│   ├── index_papers.py         # Manual indexing
+│   └── query.py                # CLI query tool
 ├── tests/
-├── docker-compose.yml
-├── Dockerfile
-├── requirements.txt
-└── README.md
+│   ├── test_api.py             # API tests
+│   └── test_document_loader.py # Document loader tests
+├── data/
+│   └── papers.db               # SQLite paper tracking
+├── docker-compose.yml          # Qdrant + Prefect services
+├── prefect.yaml                # Workflow deployments
+└── pyproject.toml
 ```
 
-## Roadmap
+## Supported Models
 
-- [x] Project setup
-- [ ] Basic RAG pipeline (PDF → query)
-- [ ] Vector database integration
-- [ ] Reranking and citations
-- [ ] Agent with arxiv tool
-- [ ] Web search integration
-- [ ] Streamlit UI
-- [ ] Docker deployment
-- [ ] CI/CD pipeline
+| Model | Size | VRAM | Notes |
+|-------|------|------|-------|
+| qwen3:14b | 14B | ~12GB | Default, best overall |
+| gemma3:12b | 12B | ~10GB | Good for general Q&A |
+| mistral-small:24b | 24B | ~16GB | Highest quality |
+| mistral-nemo | 12B | ~8GB | Fast inference |
+
+## Evaluation & Metrics
+
+Every query returns evaluation scores and retrieval metrics:
+
+### LLM-as-a-Judge Scores
+| Metric | Description |
+|--------|-------------|
+| Relevance | Does the answer address the question? |
+| Faithfulness | Is the answer grounded in sources (no hallucination)? |
+| Completeness | Does it fully answer the question? |
+| Citation Accuracy | Are [1], [2] citations used correctly? |
+
+### Retrieval Metrics
+| Metric | Description |
+|--------|-------------|
+| MRR | Mean Reciprocal Rank - position of first relevant result |
+| NDCG | Normalized DCG - ranking quality considering position |
+| P@K | Precision at K - fraction of top-K results that are relevant |
+
+### Example Response
+```json
+{
+  "answer": "...",
+  "sources": [...],
+  "evaluation": {
+    "relevance_score": 0.9,
+    "faithfulness_score": 0.85,
+    "completeness_score": 0.8,
+    "citation_accuracy": 0.75,
+    "overall_score": 0.847,
+    "reasoning": "The answer directly addresses..."
+  },
+  "retrieval_metrics": {
+    "mrr": 1.0,
+    "ndcg": 0.923,
+    "precision_at_k": {"1": 1.0, "3": 0.667, "5": 0.6}
+  }
+}
+```
