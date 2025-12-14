@@ -1,0 +1,87 @@
+site_name: Research Assistant
+site_description: RAG-powered research assistant for academic papers
+site_author: Jean Dié
+site_url: https://agapestack.github.io/research-assistant
+
+repo_name: agapestack/research-assistant
+repo_url: https://github.com/agapestack/research-assistant
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - content.code.copy
+    - content.code.annotate
+  icon:
+    repo: fontawesome/brands/github
+
+plugins:
+  - search
+  - mermaid2
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - admonition
+  - pymdownx.details
+  - tables
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Architecture:
+      - Overview: architecture/overview.md
+      - Tech Stack: architecture/tech-stack.md
+  - Pipeline:
+      - Paper Ingestion: pipeline/ingestion.md
+      - Chunking Strategy: pipeline/chunking.md
+      - Embeddings: pipeline/embeddings.md
+      - Vector Storage: pipeline/vector-storage.md
+      - Retrieval & Reranking: pipeline/retrieval.md
+  - Benchmarks:
+      - Embedding Models: benchmarks/embeddings.md
+      - Retrieval Quality: benchmarks/retrieval.md
+  - API Reference: api.md
+  - Deployment: deployment.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/agapestack
+    - icon: fontawesome/brands/linkedin
+      link: https://linkedin.com/in/yourprofile
+
+copyright: Copyright &copy; 2026 Jean Dié

@@ -1,4 +1,5 @@
-# CV (private)
+# Personal notes (private)
+certifications.md
 *.pdf
 JEAN_DIÉ_CV.pdf
 
@@ -77,3 +78,6 @@ Thumbs.db
 .pytest_cache/
 .coverage
 htmlcov/
+
+# MkDocs build
+site/

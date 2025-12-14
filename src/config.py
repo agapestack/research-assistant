@@ -8,6 +8,9 @@ class Settings(BaseSettings):
     qdrant_host: str = "localhost"
     qdrant_port: int = 6333
 
+    # Embeddings
+    embedding_model: str = "minilm"
+
     # LLM
     llm_model: str = "qwen3:14b"
     llm_temperature: float = 0.1

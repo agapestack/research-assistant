@@ -11,27 +11,19 @@ def full_pipeline_flow(
     days_back: int = 30,
     max_per_query: int = 100,
     index_limit: int = 50,
-    download_pdfs: bool = True,
 ) -> dict:
     """
     Full pipeline: Collect papers from arXiv and index them.
-
-    This is the main entry point for scheduled runs.
 
     Args:
         days_back: How many days back to search
         max_per_query: Maximum results per search query
         index_limit: Maximum papers to index per run
-        download_pdfs: Whether to download PDFs
-
-    Returns:
-        Combined summary of collection and indexing
     """
     logger = get_run_logger()
     run_name = flow_run.get_name() if flow_run else "manual"
     logger.info(f"Starting full pipeline: {run_name}")
 
-    # Phase 1: Collection
     logger.info("=" * 50)
     logger.info("PHASE 1: Collecting papers from arXiv")
     logger.info("=" * 50)
@@ -39,7 +31,6 @@ def full_pipeline_flow(
     collection_result = collect_papers_flow(
         max_per_query=max_per_query,
         days_back=days_back,
-        download=download_pdfs,
     )
 
     # Phase 2: Indexing
@@ -72,7 +63,6 @@ def daily_update_flow() -> dict:
         days_back=7,
         max_per_query=50,
         index_limit=30,
-        download_pdfs=True,
     )
 
 
@@ -83,5 +73,4 @@ def weekly_full_sync_flow() -> dict:
         days_back=30,
         max_per_query=200,
         index_limit=100,
-        download_pdfs=True,
     )

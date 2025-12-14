@@ -122,6 +122,7 @@ def index_chunks(chunks: list, batch_size: int = 100) -> int:
     vector_store = VectorStore(
         host=settings.qdrant_host,
         port=settings.qdrant_port,
+        embedding_model=settings.embedding_model,
     )
 
     total_indexed = 0

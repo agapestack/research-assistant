@@ -1,8 +1,9 @@
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, VectorParams, PointStruct
-from sentence_transformers import SentenceTransformer
 from langchain_core.documents import Document
 import hashlib
+
+from .embeddings import Embedder, get_embedder
 
 
 class VectorStore:
@@ -12,12 +13,12 @@ class VectorStore:
         self,
         host: str = "localhost",
         port: int = 6333,
-        collection_name: str = "papers",
-        embedding_model: str = "all-MiniLM-L6-v2",
+        collection_prefix: str = "papers",
+        embedding_model: str = "minilm",
+        embedder: Embedder | None = None,
     ):
-        self.collection_name = collection_name
-        self.encoder = SentenceTransformer(embedding_model)
-        self.vector_size = self.encoder.get_sentence_embedding_dimension()
+        self.embedder = embedder or get_embedder(embedding_model)
+        self.collection_name = f"{collection_prefix}_{self.embedder.name}"
         self.client = QdrantClient(host=host, port=port)
         self._ensure_collection()
 
@@ -27,7 +28,7 @@ class VectorStore:
             self.client.create_collection(
                 collection_name=self.collection_name,
                 vectors_config=VectorParams(
-                    size=self.vector_size,
+                    size=self.embedder.dimensions,
                     distance=Distance.COSINE,
                 ),
             )
@@ -41,21 +42,22 @@ class VectorStore:
         if not documents:
             return
 
-        points = []
-        for doc in documents:
-            vector = self.encoder.encode(doc.page_content).tolist()
-            payload = {"content": doc.page_content, **doc.metadata}
-            points.append(PointStruct(
-                id=self._generate_id(doc),
-                vector=vector,
-                payload=payload,
-            ))
+        texts = [doc.page_content for doc in documents]
+        vectors = self.embedder.encode(texts)
 
+        points = [
+            PointStruct(
+                id=self._generate_id(doc),
+                vector=vec,
+                payload={"content": doc.page_content, **doc.metadata},
+            )
+            for doc, vec in zip(documents, vectors)
+        ]
         self.client.upsert(collection_name=self.collection_name, points=points)
 
     def search(self, query: str, k: int = 5) -> list[dict]:
         """Search for similar documents."""
-        query_vector = self.encoder.encode(query).tolist()
+        query_vector = self.embedder.encode_query(query)
         results = self.client.query_points(
             collection_name=self.collection_name,
             query=query_vector,

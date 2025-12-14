@@ -2,10 +2,8 @@ from langchain_ollama import ChatOllama
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from collections.abc import AsyncIterator
-from dataclasses import asdict
 from .vector_store import VectorStore
 from .reranker import Reranker
-from .evaluation import LLMJudge, RetrievalEvaluator, EvaluationResult, RetrievalMetrics
 
 SYSTEM_PROMPT = """You are a research assistant that answers questions based on academic papers.
 Use the provided context from research papers to answer the question.
@@ -47,7 +45,6 @@ class RAGChain:
         qdrant_port: int = 6333,
         temperature: float = 0.1,
         enable_reranking: bool = True,
-        enable_evaluation: bool = True,
         retrieval_k: int = 20,
         rerank_top_k: int = 5,
     ):
@@ -61,26 +58,22 @@ class RAGChain:
         self.chain = self.prompt | self.llm | StrOutputParser()
 
         self.enable_reranking = enable_reranking
-        self.enable_evaluation = enable_evaluation
         self.retrieval_k = retrieval_k
         self.rerank_top_k = rerank_top_k
 
         self.reranker = Reranker() if enable_reranking else None
-        self.judge = LLMJudge(model=model) if enable_evaluation else None
 
-    def _retrieve_and_rerank(self, question: str, k: int = 5) -> tuple[list[dict], RetrievalMetrics | None]:
+    def _retrieve_and_rerank(self, question: str, k: int = 5) -> list[dict]:
         """Two-stage retrieval: vector search + cross-encoder reranking."""
         fetch_k = self.retrieval_k if self.enable_reranking else k
         results = self.vector_store.search(question, k=fetch_k)
 
         if self.enable_reranking and self.reranker:
             results = self.reranker.rerank(question, results, top_k=k)
-            metrics = RetrievalEvaluator.compute_metrics(results)
         else:
-            metrics = RetrievalEvaluator.compute_metrics(results[:k]) if results else None
             results = results[:k]
 
-        return results, metrics
+        return results
 
     def _format_context(self, results: list[dict]) -> str:
         context_parts = []
@@ -98,8 +91,8 @@ class RAGChain:
         return "\n\n".join(context_parts)
 
     def query(self, question: str, k: int = 5) -> dict:
-        """Query the RAG chain (sync, no evaluation)."""
-        results, metrics = self._retrieve_and_rerank(question, k)
+        """Query the RAG chain."""
+        results = self._retrieve_and_rerank(question, k)
         context = self._format_context(results)
         answer = self.chain.invoke({"context": context, "question": question})
         return {
@@ -113,12 +106,11 @@ class RAGChain:
                 }
                 for r in results
             ],
-            "retrieval_metrics": asdict(metrics) if metrics else None,
         }
 
     async def aquery(self, question: str, k: int = 5) -> dict:
-        """Async query with two-stage retrieval and LLM-as-judge evaluation."""
-        results, retrieval_metrics = self._retrieve_and_rerank(question, k)
+        """Async query with two-stage retrieval."""
+        results = self._retrieve_and_rerank(question, k)
         context = self._format_context(results)
         answer = await self.chain.ainvoke({"context": context, "question": question})
 
@@ -136,20 +128,11 @@ class RAGChain:
             for i, r in enumerate(results)
         ]
 
-        evaluation = None
-        if self.enable_evaluation and self.judge:
-            evaluation = await self.judge.evaluate(question, answer, sources)
+        return {"answer": answer, "sources": sources}
 
-        return {
-            "answer": answer,
-            "sources": sources,
-            "evaluation": asdict(evaluation) if evaluation else None,
-            "retrieval_metrics": asdict(retrieval_metrics) if retrieval_metrics else None,
-        }
-
-    async def aquery_stream(self, question: str, k: int = 5) -> tuple[list[dict], RetrievalMetrics | None, AsyncIterator[str]]:
-        """Stream the answer while returning sources and metrics immediately."""
-        results, retrieval_metrics = self._retrieve_and_rerank(question, k)
+    async def aquery_stream(self, question: str, k: int = 5) -> tuple[list[dict], AsyncIterator[str]]:
+        """Stream the answer while returning sources immediately."""
+        results = self._retrieve_and_rerank(question, k)
         context = self._format_context(results)
         sources = [
             {
@@ -169,7 +152,7 @@ class RAGChain:
             async for chunk in self.chain.astream({"context": context, "question": question}):
                 yield chunk
 
-        return sources, retrieval_metrics, generate()
+        return sources, generate()
 
     async def generate_followups(self, question: str, answer: str) -> list[str]:
         """Generate follow-up question suggestions."""

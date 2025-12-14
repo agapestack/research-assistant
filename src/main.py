@@ -1,6 +1,5 @@
 import json
 from contextlib import asynccontextmanager
-from dataclasses import asdict
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
@@ -21,6 +20,7 @@ def get_vector_store() -> VectorStore:
         _vector_store = VectorStore(
             host=settings.qdrant_host,
             port=settings.qdrant_port,
+            embedding_model=settings.embedding_model,
         )
     return _vector_store
 
@@ -76,27 +76,10 @@ class Source(BaseModel):
     original_score: float | None = None
 
 
-class EvaluationResponse(BaseModel):
-    relevance_score: float
-    faithfulness_score: float
-    completeness_score: float
-    citation_accuracy: float
-    overall_score: float
-    reasoning: str
-
-
-class RetrievalMetricsResponse(BaseModel):
-    mrr: float
-    ndcg: float
-    precision_at_k: dict[int, float]
-
-
 class QueryResponse(BaseModel):
     answer: str
     sources: list[Source]
     model: str
-    evaluation: EvaluationResponse | None = None
-    retrieval_metrics: RetrievalMetricsResponse | None = None
 
 
 class FollowupRequest(BaseModel):
@@ -145,20 +128,10 @@ async def query(request: QueryRequest):
     rag = get_rag_chain(request.model)
     result = await rag.aquery(request.question, k=request.k)
 
-    evaluation = None
-    if result.get("evaluation"):
-        evaluation = EvaluationResponse(**result["evaluation"])
-
-    retrieval_metrics = None
-    if result.get("retrieval_metrics"):
-        retrieval_metrics = RetrievalMetricsResponse(**result["retrieval_metrics"])
-
     return QueryResponse(
         answer=result["answer"],
         sources=result["sources"],
         model=rag.model_name,
-        evaluation=evaluation,
-        retrieval_metrics=retrieval_metrics,
     )
 
 
@@ -171,11 +144,10 @@ async def query_stream(request: QueryRequest):
             detail=f"Unknown model. Available: {list(RAGChain.AVAILABLE_MODELS.keys())}",
         )
     rag = get_rag_chain(request.model)
-    sources, retrieval_metrics, stream = await rag.aquery_stream(request.question, k=request.k)
-    metrics_dict = asdict(retrieval_metrics) if retrieval_metrics else None
+    sources, stream = await rag.aquery_stream(request.question, k=request.k)
 
     async def generate():
-        yield f"data: {json.dumps({'type': 'sources', 'sources': sources, 'model': rag.model_name, 'retrieval_metrics': metrics_dict})}\n\n"
+        yield f"data: {json.dumps({'type': 'sources', 'sources': sources, 'model': rag.model_name})}\n\n"
         async for chunk in stream:
             yield f"data: {json.dumps({'type': 'chunk', 'content': chunk})}\n\n"
         yield f"data: {json.dumps({'type': 'done'})}\n\n"

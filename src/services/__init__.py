@@ -9,10 +9,10 @@ from .document_loader import (
     extract_text_from_pdf,
 )
 from .html_fetcher import fetch_paper_html, fetch_papers_html, PaperHTML
+from .embeddings import Embedder, get_embedder, list_available_models
 from .vector_store import VectorStore
 from .rag_chain import RAGChain
 from .reranker import Reranker
-from .evaluation import LLMJudge, RetrievalEvaluator, EvaluationResult, RetrievalMetrics
 
 __all__ = [
     "search_papers",
@@ -26,11 +26,10 @@ __all__ = [
     "fetch_paper_html",
     "fetch_papers_html",
     "PaperHTML",
+    "Embedder",
+    "get_embedder",
+    "list_available_models",
     "VectorStore",
     "RAGChain",
     "Reranker",
-    "LLMJudge",
-    "RetrievalEvaluator",
-    "EvaluationResult",
-    "RetrievalMetrics",
 ]
