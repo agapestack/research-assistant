@@ -6,7 +6,7 @@ A RAG-powered research assistant for exploring and querying academic papers from
 
 This project demonstrates practical experience with modern GenAI/LLM technologies:
 - **RAG pipelines** with inline citations and streaming responses
-- **Two-stage retrieval** with cross-encoder reranking (BAAI/bge-reranker-base)
+- **Two-stage retrieval** with cross-encoder reranking (jina-reranker-v3)
 - **LLM-as-a-judge** for automated answer quality evaluation
 - **IR metrics** including MRR, NDCG, and Precision@K
 - **Vector databases** for semantic search (Qdrant)
@@ -36,8 +36,8 @@ This project demonstrates practical experience with modern GenAI/LLM technologie
 | Backend | FastAPI, SSE streaming |
 | Orchestration | Prefect (workflow automation) |
 | Vector DB | Qdrant |
-| Embeddings | sentence-transformers (all-MiniLM-L6-v2) |
-| Reranker | BAAI/bge-reranker-base (cross-encoder) |
+| Embeddings | Qwen3-Embedding-4B ([MTEB](https://huggingface.co/spaces/mteb/leaderboard)) |
+| Reranker | jina-reranker-v3 (cross-encoder) |
 | LLM | Ollama (Qwen3-14B, Gemma3-12B, Mistral) |
 | Text Extraction | ar5iv HTML parsing (BeautifulSoup) |
 
@@ -58,7 +58,7 @@ This project demonstrates practical experience with modern GenAI/LLM technologie
 │                       RAG Pipeline                               │
 │  ┌────────────┐   ┌──────────┐   ┌───────────┐   ┌───────────┐ │
 │  │ Vector     │──▶│ Reranker │──▶│ LLM Gen   │──▶│ LLM Judge │ │
-│  │ Search     │   │ (BGE)    │   │ (Ollama)  │   │ (Eval)    │ │
+│  │ Search     │   │ (Jina)   │   │ (Ollama)  │   │ (Eval)    │ │
 │  └────────────┘   └──────────┘   └───────────┘   └───────────┘ │
 │        │                │                              │        │
 │        ▼                ▼                              ▼        │
@@ -83,7 +83,7 @@ cd research-assistant
 # Install Python dependencies
 uv sync
 
-# Start infrastructure (Qdrant + Prefect)
+# Start infrastructure (Qdrant)
 docker compose up -d
 
 # Pull an LLM model
@@ -91,6 +91,39 @@ ollama pull qwen3:14b
 
 # Install frontend dependencies
 cd frontend && npm install && cd ..
+```
+
+### Flash Attention (Optional, GPU acceleration)
+
+Flash Attention significantly speeds up embedding and reranking on GPU. Requires CUDA toolkit.
+
+**WSL Ubuntu:**
+```bash
+# Install CUDA toolkit (don't install drivers - WSL uses Windows driver)
+wget https://developer.download.nvidia.com/compute/cuda/repos/wsl-ubuntu/x86_64/cuda-keyring_1.1-1_all.deb
+sudo dpkg -i cuda-keyring_1.1-1_all.deb
+sudo apt-get update
+sudo apt-get -y install cuda-toolkit-12-8
+
+# Add to ~/.bashrc
+export PATH=/usr/local/cuda-12.8/bin${PATH:+:${PATH}}
+export CUDA_HOME=/usr/local/cuda-12.8
+export LD_LIBRARY_PATH=/usr/lib/wsl/lib:$LD_LIBRARY_PATH
+
+source ~/.bashrc
+```
+
+**Linux:**
+```bash
+# Install CUDA toolkit from https://developer.nvidia.com/cuda-downloads
+# Then set environment variables
+export CUDA_HOME=/usr/local/cuda
+export PATH=$CUDA_HOME/bin:$PATH
+```
+
+**Install flash-attn:**
+```bash
+uv pip install flash-attn --no-build-isolation
 ```
 
 ## Quick Start
@@ -152,6 +185,7 @@ prefect worker start --pool default-agent-pool
 Environment variables (`.env`):
 
 ```bash
+RAG_EMBEDDING_MODEL=qwen3-4b
 RAG_LLM_MODEL=qwen3:14b
 RAG_QDRANT_HOST=localhost
 RAG_QDRANT_PORT=6333
@@ -170,6 +204,7 @@ research-assistant/
 │   │   ├── arxiv_fetcher.py    # arXiv API integration
 │   │   ├── html_fetcher.py     # ar5iv HTML fetching
 │   │   ├── document_loader.py  # Text extraction & chunking
+│   │   ├── embeddings.py       # Embedding models (Qwen3, E5, etc.)
 │   │   ├── vector_store.py     # Qdrant operations
 │   │   ├── reranker.py         # Cross-encoder reranking
 │   │   ├── evaluation.py       # LLM-as-judge + IR metrics
@@ -188,15 +223,25 @@ research-assistant/
 ├── scripts/
 │   ├── run_flow.py             # Prefect flow CLI
 │   ├── index_papers.py         # Manual indexing
-│   └── query.py                # CLI query tool
-├── tests/
-│   ├── test_api.py             # API tests
-│   └── test_document_loader.py # Document loader tests
+│   ├── query.py                # CLI query tool
+│   └── evaluate_retrieval.py   # Retrieval quality evaluation
+├── tests/                      # Unit & integration tests
 ├── data/
 │   └── papers.db               # SQLite paper tracking
-├── docker-compose.yml          # Qdrant + Prefect services
+├── docker-compose.yml          # Qdrant service
 ├── prefect.yaml                # Workflow deployments
 └── pyproject.toml
+```
+
+## Testing
+
+```bash
+# Run unit tests (mocked, no GPU required)
+uv run pytest tests/ -v -m "not integration and not gpu" --ignore=tests/test_integration.py
+
+# Run integration tests (requires GPU + Qdrant)
+docker compose up -d
+uv run pytest tests/test_integration.py -v
 ```
 
 ## Supported Models

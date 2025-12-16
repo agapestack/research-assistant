@@ -25,8 +25,7 @@ docker compose up -d qdrant
 # 3. Pull an LLM model
 ollama pull qwen3:14b
 
-# 4. Index some papers
-uv run python scripts/benchmark_embeddings.py --models bge-base --papers 20
+# 4. Index some papers (via API or scripts)
 
 # 5. Start the API
 uv run uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
@@ -47,7 +46,7 @@ RAG_QDRANT_HOST=localhost
 RAG_QDRANT_PORT=6333
 
 # Embeddings
-RAG_EMBEDDING_MODEL=bge-base
+RAG_EMBEDDING_MODEL=qwen3-4b
 
 # LLM
 RAG_LLM_MODEL=qwen3:14b
@@ -55,6 +54,21 @@ RAG_LLM_TEMPERATURE=0.1
 
 # Retrieval
 RAG_RETRIEVAL_K=5
+```
+
+---
+
+## Testing
+
+```bash
+# Unit tests (mocked, no GPU required)
+uv run python -m pytest tests/ --ignore=tests/test_integration.py -v
+
+# Integration tests (requires GPU + Qdrant)
+uv run python -m pytest tests/test_integration.py -v
+
+# Linting
+uv run ruff check src/ tests/
 ```
 
 ---
@@ -79,7 +93,7 @@ services:
       - "8000:8000"
     environment:
       - RAG_QDRANT_HOST=qdrant
-      - RAG_EMBEDDING_MODEL=bge-base
+      - RAG_EMBEDDING_MODEL=qwen3-4b
     depends_on:
       - qdrant
 

@@ -229,7 +229,7 @@ Get vector store statistics.
 ```json
 {
   "total_documents": 45230,
-  "collection_name": "papers_bge-base"
+  "collection_name": "papers_qwen3-4b"
 }
 ```
 

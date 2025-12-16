@@ -1,6 +1,7 @@
+from unittest.mock import AsyncMock, Mock, patch
+
 import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import Mock, patch, AsyncMock
 
 
 @pytest.fixture
@@ -55,6 +56,7 @@ def client(mock_vector_store, mock_rag_chain):
     with patch("src.main.get_vector_store", return_value=mock_vector_store):
         with patch("src.main.get_rag_chain", return_value=mock_rag_chain):
             from src.main import app
+
             yield TestClient(app)
 
 
@@ -85,10 +87,7 @@ class TestStatsEndpoint:
 
 class TestQueryEndpoint:
     def test_query_returns_answer_with_sources(self, client):
-        response = client.post(
-            "/query",
-            json={"question": "What is RAG?", "k": 5}
-        )
+        response = client.post("/query", json={"question": "What is RAG?", "k": 5})
         assert response.status_code == 200
         data = response.json()
         assert "answer" in data
@@ -97,19 +96,13 @@ class TestQueryEndpoint:
         assert len(data["sources"]) > 0
 
     def test_query_validates_empty_question(self, client):
-        response = client.post(
-            "/query",
-            json={"question": "", "k": 5}
-        )
+        response = client.post("/query", json={"question": "", "k": 5})
         assert response.status_code == 422
 
 
 class TestSearchEndpoint:
     def test_search_returns_results(self, client, mock_vector_store):
-        response = client.post(
-            "/search",
-            json={"query": "transformer", "k": 5}
-        )
+        response = client.post("/search", json={"query": "transformer", "k": 5})
         assert response.status_code == 200
         data = response.json()
         assert isinstance(data, list)
@@ -122,8 +115,7 @@ class TestSearchEndpoint:
 class TestFollowupsEndpoint:
     def test_followups_returns_questions(self, client):
         response = client.post(
-            "/followups",
-            json={"question": "What is RAG?", "answer": "RAG is..."}
+            "/followups", json={"question": "What is RAG?", "answer": "RAG is..."}
         )
         assert response.status_code == 200
         data = response.json()
@@ -135,15 +127,22 @@ class TestQueryStreamEndpoint:
     def test_stream_returns_sse(self, client, mock_rag_chain):
         mock_rag_chain.aquery_stream = AsyncMock(
             return_value=(
-                [{"id": 1, "title": "Test", "arxiv_url": None, "authors": None, "page": 1, "content": "test", "score": 0.5}],
-                async_generator_mock()
+                [
+                    {
+                        "id": 1,
+                        "title": "Test",
+                        "arxiv_url": None,
+                        "authors": None,
+                        "page": 1,
+                        "content": "test",
+                        "score": 0.5,
+                    }
+                ],
+                async_generator_mock(),
             )
         )
         with patch("src.main.get_rag_chain", return_value=mock_rag_chain):
-            response = client.post(
-                "/query/stream",
-                json={"question": "What is RAG?", "k": 3}
-            )
+            response = client.post("/query/stream", json={"question": "What is RAG?", "k": 3})
             assert response.status_code == 200
             assert "text/event-stream" in response.headers.get("content-type", "")
 

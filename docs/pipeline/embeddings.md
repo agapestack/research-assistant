@@ -97,8 +97,8 @@ MODELS = {
 | Model | Dimensions | Parameters | MTEB Retrieval | VRAM |
 |-------|-----------|------------|----------------|------|
 | qwen3-8b | 4096 | 8B | **70.58** | ~16 GB |
-| qwen3-4b | 4096 | 4B | ~68 | ~10 GB |
-| qwen3-0.6b | 4096 | 0.6B | ~65 | ~2-3 GB |
+| qwen3-4b | 2560 | 4B | ~68 | ~10 GB |
+| qwen3-0.6b | 1024 | 0.6B | ~65 | ~2-3 GB |
 | bge-large | 1024 | 335M | 54.29 | ~4 GB |
 | bge-base | 768 | 110M | 53.25 | ~1 GB |
 | minilm | 384 | 23M | ~42 | ~500 MB |
@@ -157,6 +157,7 @@ Models selected based on [MTEB Leaderboard](https://huggingface.co/spaces/mteb/l
 |-------|------|--------------|-----------|
 | minilm | 384 | 1.5 KB | 150 MB |
 | bge-base | 768 | 3 KB | 300 MB |
-| qwen3-0.6b | 4096 | 16 KB | 1.6 GB |
+| qwen3-0.6b | 1024 | 4 KB | 400 MB |
+| qwen3-4b | 2560 | 10 KB | 1 GB |
 
 Qdrant handles millions of vectors efficiently with HNSW indexing.

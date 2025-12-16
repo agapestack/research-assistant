@@ -1,4 +1,5 @@
 """Fetch and parse arXiv papers from ar5iv HTML source."""
+
 import re
 import time
 from dataclasses import dataclass
@@ -83,11 +84,13 @@ def parse_paper_html(html: str, arxiv_id: str) -> PaperHTML:
                         content_parts.append(text)
 
         if content_parts:
-            sections.append(Section(
-                title=section_title,
-                level=level,
-                content=" ".join(content_parts),
-            ))
+            sections.append(
+                Section(
+                    title=section_title,
+                    level=level,
+                    content=" ".join(content_parts),
+                )
+            )
 
     # Build full text
     full_text_parts = [title, abstract]

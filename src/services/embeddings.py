@@ -1,5 +1,7 @@
 """Embedding model abstraction for easy swapping and comparison."""
+
 from abc import ABC, abstractmethod
+
 from sentence_transformers import SentenceTransformer
 
 

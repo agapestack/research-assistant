@@ -1,10 +1,10 @@
 """Prefect flows for paper indexing into vector store using ar5iv HTML."""
+
 import sqlite3
 import time
-from datetime import timedelta
 from pathlib import Path
 
-from prefect import flow, task, get_run_logger
+from prefect import flow, get_run_logger, task
 
 DATA_DIR = Path("data")
 DB_PATH = DATA_DIR / "papers.db"
@@ -20,24 +20,29 @@ def get_unindexed_papers(limit: int = 100) -> list[dict]:
         return []
 
     conn = sqlite3.connect(DB_PATH)
-    cursor = conn.execute("""
+    cursor = conn.execute(
+        """
         SELECT arxiv_id, title, authors, abstract, published, categories, arxiv_url
         FROM papers
         WHERE is_indexed = 0 AND (html_available IS NULL OR html_available = 1)
         LIMIT ?
-    """, (limit,))
+    """,
+        (limit,),
+    )
 
     papers = []
     for row in cursor.fetchall():
-        papers.append({
-            "arxiv_id": row[0],
-            "title": row[1],
-            "authors": row[2],
-            "abstract": row[3],
-            "published": row[4],
-            "categories": row[5],
-            "arxiv_url": row[6],
-        })
+        papers.append(
+            {
+                "arxiv_id": row[0],
+                "title": row[1],
+                "authors": row[2],
+                "abstract": row[3],
+                "published": row[4],
+                "categories": row[5],
+                "arxiv_url": row[6],
+            }
+        )
 
     conn.close()
     logger.info(f"Found {len(papers)} unindexed papers")
@@ -48,10 +53,11 @@ def get_unindexed_papers(limit: int = 100) -> list[dict]:
 def fetch_and_chunk_paper(paper: dict) -> dict:
     """Fetch HTML from ar5iv and chunk into documents."""
     import sys
+
     sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
+    from src.services.document_loader import chunk_document, extract_text_from_html
     from src.services.html_fetcher import fetch_paper_html
-    from src.services.document_loader import extract_text_from_html, chunk_document
 
     logger = get_run_logger()
     arxiv_id = paper["arxiv_id"]
@@ -109,10 +115,11 @@ def fetch_and_chunk_paper(paper: dict) -> dict:
 def index_chunks(chunks: list, batch_size: int = 100) -> int:
     """Index document chunks into vector store."""
     import sys
+
     sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-    from src.services import VectorStore
     from src.config import settings
+    from src.services import VectorStore
 
     logger = get_run_logger()
 
@@ -127,7 +134,7 @@ def index_chunks(chunks: list, batch_size: int = 100) -> int:
 
     total_indexed = 0
     for i in range(0, len(chunks), batch_size):
-        batch = chunks[i:i + batch_size]
+        batch = chunks[i : i + batch_size]
         try:
             vector_store.add_documents(batch)
             total_indexed += len(batch)
@@ -160,13 +167,12 @@ def update_paper_status(results: list[dict]):
     if indexed_ids:
         conn.executemany(
             "UPDATE papers SET is_indexed = 1, html_available = 1 WHERE arxiv_id = ?",
-            [(id,) for id in indexed_ids]
+            [(id,) for id in indexed_ids],
         )
 
     if no_html_ids:
         conn.executemany(
-            "UPDATE papers SET html_available = 0 WHERE arxiv_id = ?",
-            [(id,) for id in no_html_ids]
+            "UPDATE papers SET html_available = 0 WHERE arxiv_id = ?", [(id,) for id in no_html_ids]
         )
 
     conn.commit()

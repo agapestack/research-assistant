@@ -1,22 +1,22 @@
 """Prefect flows for arXiv paper collection."""
-import time
+
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import arxiv
-from prefect import flow, task, get_run_logger
+from prefect import flow, get_run_logger, task
 from prefect.tasks import task_input_hash
 
 DATA_DIR = Path("data")
 
 SEARCH_QUERIES = [
     'ti:"large language model" OR abs:"large language model"',
-    'ti:LLM OR abs:LLM',
+    "ti:LLM OR abs:LLM",
     'ti:"retrieval augmented generation" OR abs:"retrieval augmented generation"',
-    'ti:RAG OR abs:RAG',
+    "ti:RAG OR abs:RAG",
     'ti:"chain of thought" OR abs:"chain of thought"',
-    'ti:GPT OR abs:GPT',
-    'ti:transformer OR abs:transformer',
+    "ti:GPT OR abs:GPT",
+    "ti:transformer OR abs:transformer",
 ]
 
 CS_CATEGORIES = {"cs.AI", "cs.CL", "cs.LG", "cs.IR", "cs.NE"}
@@ -50,15 +50,17 @@ def search_arxiv(query: str, max_results: int, days_back: int) -> list[dict]:
             break
         if not set(paper.categories) & CS_CATEGORIES:
             continue
-        papers.append({
-            "arxiv_id": paper.get_short_id(),
-            "title": paper.title,
-            "authors": [a.name for a in paper.authors],
-            "abstract": paper.summary,
-            "published": paper.published.isoformat(),
-            "categories": paper.categories,
-            "arxiv_url": paper.entry_id,
-        })
+        papers.append(
+            {
+                "arxiv_id": paper.get_short_id(),
+                "title": paper.title,
+                "authors": [a.name for a in paper.authors],
+                "abstract": paper.summary,
+                "published": paper.published.isoformat(),
+                "categories": paper.categories,
+                "arxiv_url": paper.entry_id,
+            }
+        )
 
     logger.info(f"Found {len(papers)} papers for query")
     return papers
@@ -85,6 +87,7 @@ def deduplicate_papers(all_papers: list[list[dict]]) -> list[dict]:
 def save_to_db(papers: list[dict]) -> int:
     """Save papers to SQLite database."""
     import sqlite3
+
     logger = get_run_logger()
 
     db_path = DATA_DIR / "papers.db"
@@ -109,20 +112,23 @@ def save_to_db(papers: list[dict]) -> int:
     saved = 0
     for paper in papers:
         try:
-            conn.execute("""
+            conn.execute(
+                """
                 INSERT OR IGNORE INTO papers
                 (arxiv_id, title, authors, abstract, published, categories, arxiv_url, collected_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                paper["arxiv_id"],
-                paper["title"],
-                ", ".join(paper["authors"]),
-                paper["abstract"],
-                paper["published"],
-                ", ".join(paper["categories"]),
-                paper["arxiv_url"],
-                datetime.now().isoformat(),
-            ))
+            """,
+                (
+                    paper["arxiv_id"],
+                    paper["title"],
+                    ", ".join(paper["authors"]),
+                    paper["abstract"],
+                    paper["published"],
+                    ", ".join(paper["categories"]),
+                    paper["arxiv_url"],
+                    datetime.now().isoformat(),
+                ),
+            )
             if conn.total_changes:
                 saved += 1
         except Exception as e:

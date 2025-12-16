@@ -1,5 +1,6 @@
 import json
 from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
@@ -8,7 +9,6 @@ from pydantic import BaseModel, Field
 from .config import settings
 from .services import RAGChain, VectorStore, load_paper_from_html
 from .workflows.collection import search_arxiv
-
 
 _vector_store: VectorStore | None = None
 _rag_chain: RAGChain | None = None
@@ -197,7 +197,7 @@ async def index_papers(request: IndexRequest):
                 "published": paper["published"],
                 "categories": ", ".join(paper["categories"]),
                 "arxiv_url": paper["arxiv_url"],
-            }
+            },
         )
         if docs:
             get_vector_store().add_documents(docs)

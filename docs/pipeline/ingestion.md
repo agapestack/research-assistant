@@ -211,14 +211,13 @@ uv run python scripts/run_flow.py index --limit 50
 uv run python scripts/run_flow.py full
 ```
 
-### Benchmarking Script
+### Manual Indexing Script
 
 ```bash
 # Quick test with specific topic
-uv run python scripts/benchmark_embeddings.py \
-  --models bge-base \
-  --papers 10 \
-  --topic "large language models"
+uv run python scripts/index_papers.py \
+  --topic "large language models" \
+  --max-results 10
 ```
 
 ## Pipeline Statistics

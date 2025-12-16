@@ -1,13 +1,15 @@
 import math
 from dataclasses import dataclass
-from langchain_ollama import ChatOllama
-from langchain_core.prompts import ChatPromptTemplate
+
 from langchain_core.output_parsers import JsonOutputParser
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_ollama import ChatOllama
 
 
 @dataclass
 class EvaluationResult:
     """Complete evaluation of a RAG response."""
+
     relevance_score: float  # 0-1: How relevant is the answer to the question
     faithfulness_score: float  # 0-1: Is the answer grounded in the sources
     completeness_score: float  # 0-1: Does the answer fully address the question
@@ -19,6 +21,7 @@ class EvaluationResult:
 @dataclass
 class RetrievalMetrics:
     """Information retrieval quality metrics."""
+
     mrr: float  # Mean Reciprocal Rank
     ndcg: float  # Normalized Discounted Cumulative Gain
     precision_at_k: dict[int, float]  # Precision at k=1,3,5
@@ -71,11 +74,13 @@ class LLMJudge:
         sources_text = self._format_sources(sources)
 
         chain = self.prompt | self.llm | self.parser
-        result = await chain.ainvoke({
-            "question": question,
-            "sources": sources_text,
-            "answer": answer,
-        })
+        result = await chain.ainvoke(
+            {
+                "question": question,
+                "sources": sources_text,
+                "answer": answer,
+            }
+        )
 
         weights = {
             "relevance": 0.3,
@@ -147,7 +152,9 @@ class RetrievalEvaluator:
 
         mrr = RetrievalEvaluator._compute_mrr(binary_relevance)
         ndcg = RetrievalEvaluator._compute_ndcg(normalized)
-        precision_at_k = {k: RetrievalEvaluator._compute_precision_at_k(binary_relevance, k) for k in k_values}
+        precision_at_k = {
+            k: RetrievalEvaluator._compute_precision_at_k(binary_relevance, k) for k in k_values
+        }
 
         return RetrievalMetrics(
             mrr=round(mrr, 4),

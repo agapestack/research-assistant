@@ -1,7 +1,8 @@
-from qdrant_client import QdrantClient
-from qdrant_client.models import Distance, VectorParams, PointStruct
-from langchain_core.documents import Document
 import hashlib
+
+from langchain_core.documents import Document
+from qdrant_client import QdrantClient
+from qdrant_client.models import Distance, PointStruct, VectorParams
 
 from .embeddings import Embedder, get_embedder
 

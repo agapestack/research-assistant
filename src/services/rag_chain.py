@@ -1,9 +1,11 @@
-from langchain_ollama import ChatOllama
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.output_parsers import StrOutputParser
 from collections.abc import AsyncIterator
-from .vector_store import VectorStore
+
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_ollama import ChatOllama
+
 from .reranker import Reranker
+from .vector_store import VectorStore
 
 SYSTEM_PROMPT = """You are a research assistant that answers questions based on academic papers.
 Use the provided context from research papers to answer the question.
@@ -51,10 +53,12 @@ class RAGChain:
         self.model_name = model
         self.llm = ChatOllama(model=model, temperature=temperature)
         self.vector_store = vector_store or VectorStore(host=qdrant_host, port=qdrant_port)
-        self.prompt = ChatPromptTemplate.from_messages([
-            ("system", SYSTEM_PROMPT),
-            ("human", USER_PROMPT),
-        ])
+        self.prompt = ChatPromptTemplate.from_messages(
+            [
+                ("system", SYSTEM_PROMPT),
+                ("human", USER_PROMPT),
+            ]
+        )
         self.chain = self.prompt | self.llm | StrOutputParser()
 
         self.enable_reranking = enable_reranking
@@ -130,7 +134,9 @@ class RAGChain:
 
         return {"answer": answer, "sources": sources}
 
-    async def aquery_stream(self, question: str, k: int = 5) -> tuple[list[dict], AsyncIterator[str]]:
+    async def aquery_stream(
+        self, question: str, k: int = 5
+    ) -> tuple[list[dict], AsyncIterator[str]]:
         """Stream the answer while returning sources immediately."""
         results = self._retrieve_and_rerank(question, k)
         context = self._format_context(results)

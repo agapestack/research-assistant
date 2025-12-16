@@ -56,7 +56,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_prefix="RAG_")
 
     qdrant_host: str = "localhost"
-    embedding_model: str = "bge-base"
+    embedding_model: str = "qwen3-4b"
     llm_model: str = "qwen3:14b"
 ```
 
@@ -131,8 +131,8 @@ client.create_collection(
 Each embedding model gets its own collection:
 
 ```
-papers_minilm      (384 dims)
-papers_bge-base    (768 dims)
+papers_qwen3-4b    (2560 dims)
+papers_qwen3-0.6b  (1024 dims)
 papers_bge-large   (1024 dims)
 ```
 
@@ -145,28 +145,28 @@ This allows A/B testing different models.
 ```python
 from sentence_transformers import SentenceTransformer
 
-model = SentenceTransformer("BAAI/bge-base-en-v1.5")
+model = SentenceTransformer("Qwen/Qwen3-Embedding-4B")
 vectors = model.encode(["text1", "text2"])
 ```
 
-**Model Options**:
+Models selected based on [MTEB Leaderboard](https://huggingface.co/spaces/mteb/leaderboard).
 
-| Model | Dimensions | Quality | Speed |
-|-------|-----------|---------|-------|
-| all-MiniLM-L6-v2 | 384 | Good | Fast |
-| bge-base-en-v1.5 | 768 | Very Good | Medium |
-| bge-large-en-v1.5 | 1024 | Excellent | Slow |
+| Model | Dimensions | MTEB Retrieval |
+|-------|-----------|----------------|
+| Qwen3-Embedding-8B | 4096 | 70.58 |
+| Qwen3-Embedding-4B | 4096 | ~68 |
+| Qwen3-Embedding-0.6B | 4096 | ~65 |
 
-### Cross-Encoder Reranker
+### Reranker
 
 ```python
-from sentence_transformers import CrossEncoder
+from transformers import AutoModel
 
-reranker = CrossEncoder("BAAI/bge-reranker-base")
-scores = reranker.predict([("query", "doc1"), ("query", "doc2")])
+model = AutoModel.from_pretrained("jinaai/jina-reranker-v3", trust_remote_code=True)
+results = model.rerank(query, documents)
 ```
 
-Cross-encoders are more accurate than bi-encoders but slower (can't pre-compute).
+Selected based on [MTEB Reranking leaderboard](https://huggingface.co/spaces/mteb/leaderboard).
 
 ## Workflow Orchestration
 
@@ -282,9 +282,7 @@ splitter = RecursiveCharacterTextSplitter(
 | Tool | Purpose |
 |------|---------|
 | pytest | Testing |
-| ruff | Linting |
-| mypy | Type checking |
-| pre-commit | Git hooks |
+| ruff | Linting & formatting |
 
 ## Infrastructure
 
@@ -304,6 +302,6 @@ services:
 
 CI/CD for:
 
-- Running tests
+- Linting (ruff)
 - Building documentation
 - Deploying to GitHub Pages

@@ -17,13 +17,13 @@ Qdrant is a vector similarity search engine:
 ```mermaid
 flowchart LR
     subgraph Qdrant
-        C1[Collection: papers_minilm]
-        C2[Collection: papers_bge-base]
+        C1[Collection: papers_qwen3-4b]
+        C2[Collection: papers_qwen3-0.6b]
         C3[Collection: papers_bge-large]
     end
 
-    E1[MiniLM Embedder] --> C1
-    E2[BGE-Base Embedder] --> C2
+    E1[Qwen3-4B Embedder] --> C1
+    E2[Qwen3-0.6B Embedder] --> C2
     E3[BGE-Large Embedder] --> C3
 
     Q[Query] --> S{Search}
@@ -46,7 +46,7 @@ class VectorStore:
         host: str = "localhost",
         port: int = 6333,
         collection_prefix: str = "papers",
-        embedding_model: str = "minilm",
+        embedding_model: str = "qwen3-4b",
     ):
         self.embedder = get_embedder(embedding_model)
         self.collection_name = f"{collection_prefix}_{self.embedder.name}"
@@ -76,7 +76,7 @@ from qdrant_client.models import PointStruct
 
 point = PointStruct(
     id="md5_hash_of_source_page_chunk",
-    vector=[0.12, -0.34, ...],  # 768 floats for bge-base
+    vector=[0.12, -0.34, ...],  # 2560 floats for qwen3-4b
     payload={
         "content": "The transformer architecture...",
         "title": "Attention Is All You Need",
@@ -217,7 +217,7 @@ Default settings work well for most cases.
 Check collection stats:
 
 ```bash
-curl http://localhost:6333/collections/papers_bge-base
+curl http://localhost:6333/collections/papers_qwen3-4b
 ```
 
 Response:

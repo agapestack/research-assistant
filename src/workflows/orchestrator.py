@@ -1,4 +1,5 @@
 """Main orchestrator flow combining collection and indexing."""
+
 from prefect import flow, get_run_logger
 from prefect.runtime import flow_run
 
@@ -50,7 +51,9 @@ def full_pipeline_flow(
     logger.info("=" * 50)
     logger.info("PIPELINE COMPLETE")
     logger.info(f"Collected: {collection_result.get('unique_papers', 0)} papers")
-    logger.info(f"Indexed: {indexing_result.get('successful', 0)} papers ({indexing_result.get('indexed_chunks', 0)} chunks)")
+    logger.info(
+        f"Indexed: {indexing_result.get('successful', 0)} papers ({indexing_result.get('indexed_chunks', 0)} chunks)"
+    )
     logger.info("=" * 50)
 
     return summary

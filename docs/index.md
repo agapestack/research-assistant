@@ -29,10 +29,11 @@ cd research-assistant
 uv sync
 
 # Start Qdrant
-docker compose up -d qdrant
+docker compose up -d
 
-# Index some papers
-uv run python scripts/benchmark_embeddings.py --models bge-base --papers 10
+# Collect and index papers
+uv run python scripts/run_flow.py collect --days 30 --max-per-query 20
+uv run python scripts/run_flow.py index --limit 20
 
 # Start the API
 uv run uvicorn src.main:app --reload
@@ -72,7 +73,7 @@ This project was built to demonstrate:
 1. **End-to-end RAG implementation** from data ingestion to user interface
 2. **Production-quality code** with proper architecture and testing
 3. **Engineering decision-making** with documented trade-offs
-4. **Benchmarking methodology** for comparing embedding models
+4. **SOTA model selection** using [MTEB leaderboard](https://huggingface.co/spaces/mteb/leaderboard)
 5. **Modern Python tooling** (uv, FastAPI, Pydantic, type hints)
 
 ## What You'll Learn
@@ -81,6 +82,6 @@ Explore the documentation to understand:
 
 - [How papers are ingested and processed](pipeline/ingestion.md)
 - [Chunking strategies for academic text](pipeline/chunking.md)
-- [Comparing embedding models](benchmarks/embeddings.md)
+- [Embedding model selection](pipeline/embeddings.md)
 - [Two-stage retrieval with reranking](pipeline/retrieval.md)
 - [System architecture decisions](architecture/overview.md)

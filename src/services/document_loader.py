@@ -1,9 +1,10 @@
-import fitz
 from pathlib import Path
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_core.documents import Document
 
-from .html_fetcher import fetch_paper_html, PaperHTML
+import fitz
+from langchain_core.documents import Document
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+
+from .html_fetcher import PaperHTML, fetch_paper_html
 
 
 def extract_text_from_pdf(pdf_path: Path) -> list[dict]:
@@ -91,19 +92,25 @@ def load_papers(
     for paper in papers:
         extra_metadata = {
             "title": paper["title"],
-            "authors": ", ".join(paper["authors"]) if isinstance(paper["authors"], list) else paper["authors"],
+            "authors": ", ".join(paper["authors"])
+            if isinstance(paper["authors"], list)
+            else paper["authors"],
             "published": paper["published"],
             "journal": paper.get("journal"),
-            "categories": ", ".join(paper.get("categories", [])) if isinstance(paper.get("categories"), list) else paper.get("categories"),
+            "categories": ", ".join(paper.get("categories", []))
+            if isinstance(paper.get("categories"), list)
+            else paper.get("categories"),
             "arxiv_url": paper["arxiv_url"],
             "arxiv_id": paper.get("id") or paper.get("arxiv_id"),
         }
-        documents.extend(load_pdf(
-            paper["pdf_path"],
-            chunk_size,
-            chunk_overlap,
-            extra_metadata,
-        ))
+        documents.extend(
+            load_pdf(
+                paper["pdf_path"],
+                chunk_size,
+                chunk_overlap,
+                extra_metadata,
+            )
+        )
     return documents
 
 
@@ -153,9 +160,13 @@ def load_papers_from_html(
         arxiv_id = paper.get("arxiv_id") or paper.get("id")
         metadata = {
             "title": paper.get("title", ""),
-            "authors": ", ".join(paper["authors"]) if isinstance(paper.get("authors"), list) else paper.get("authors", ""),
+            "authors": ", ".join(paper["authors"])
+            if isinstance(paper.get("authors"), list)
+            else paper.get("authors", ""),
             "published": paper.get("published", ""),
-            "categories": ", ".join(paper["categories"]) if isinstance(paper.get("categories"), list) else paper.get("categories", ""),
+            "categories": ", ".join(paper["categories"])
+            if isinstance(paper.get("categories"), list)
+            else paper.get("categories", ""),
             "arxiv_url": paper.get("arxiv_url", ""),
         }
         docs = load_paper_from_html(arxiv_id, metadata, chunk_size, chunk_overlap)

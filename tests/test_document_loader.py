@@ -1,5 +1,7 @@
-import pytest
 from pathlib import Path
+
+import pytest
+
 from src.services.document_loader import chunk_document, extract_text_from_pdf
 
 
