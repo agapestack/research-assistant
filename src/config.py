@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     qdrant_port: int = 6333
 
     # Embeddings
-    embedding_model: str = "minilm"
+    embedding_model: str = "qwen3-4b"
 
     # LLM
     llm_model: str = "qwen3:14b"

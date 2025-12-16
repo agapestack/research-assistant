@@ -74,9 +74,6 @@ nav:
       - Embeddings: pipeline/embeddings.md
       - Vector Storage: pipeline/vector-storage.md
       - Retrieval & Reranking: pipeline/retrieval.md
-  - Benchmarks:
-      - Embedding Models: benchmarks/embeddings.md
-      - Retrieval Quality: benchmarks/retrieval.md
   - API Reference: api.md
   - Deployment: deployment.md
 

@@ -1,11 +1,17 @@
-from sentence_transformers import CrossEncoder
+"""Reranker for two-stage retrieval using jina-reranker-v3."""
+from transformers import AutoModel
 
 
 class Reranker:
-    """Cross-encoder reranker for two-stage retrieval."""
+    """Cross-encoder reranker using jina-reranker-v3."""
 
-    def __init__(self, model_name: str = "BAAI/bge-reranker-base"):
-        self.model = CrossEncoder(model_name, max_length=512)
+    def __init__(self, model_name: str = "jinaai/jina-reranker-v3"):
+        self.model = AutoModel.from_pretrained(
+            model_name,
+            torch_dtype="auto",
+            trust_remote_code=True,
+        )
+        self.model.eval()
 
     def rerank(
         self,
@@ -26,16 +32,14 @@ class Reranker:
         if not documents:
             return []
 
-        pairs = [(query, doc["content"]) for doc in documents]
-        scores = self.model.predict(pairs)
+        contents = [doc["content"] for doc in documents]
+        results = self.model.rerank(query, contents, top_n=top_k)
 
-        for doc, score in zip(documents, scores):
-            doc["rerank_score"] = float(score)
+        reranked = []
+        for result in results:
+            doc = documents[result["index"]].copy()
+            doc["rerank_score"] = float(result["relevance_score"])
             doc["original_score"] = doc.get("score", 0.0)
-
-        reranked = sorted(documents, key=lambda x: x["rerank_score"], reverse=True)
-
-        if top_k is not None:
-            reranked = reranked[:top_k]
+            reranked.append(doc)
 
         return reranked

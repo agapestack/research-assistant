@@ -10,7 +10,7 @@ We use a two-stage approach for optimal speed and precision:
 flowchart LR
     Q[Query] --> E[Embed Query]
     E --> VS[Vector Search<br/>k=20, ~10ms]
-    VS --> RR[Cross-Encoder<br/>Rerank to top 5]
+    VS --> RR[Reranker<br/>top 5]
     RR --> LLM[LLM Generation]
 
     style VS fill:#e1f5fe
@@ -21,9 +21,9 @@ flowchart LR
 
 | Approach | Speed | Precision | Use Case |
 |----------|-------|-----------|----------|
-| Vector only | ⚡⚡⚡ | Good | Large-scale filtering |
-| Cross-encoder only | ⚡ | Excellent | Can't scale |
-| **Two-stage** | ⚡⚡ | **Excellent** | **Best of both** |
+| Vector only | Fast | Good | Large-scale filtering |
+| Reranker only | Slow | Excellent | Can't scale |
+| **Two-stage** | Balanced | **Excellent** | **Best of both** |
 
 ## Stage 1: Vector Search
 
@@ -56,24 +56,27 @@ flowchart LR
 
 **Key Property**: Document vectors are pre-computed, only query needs encoding at search time.
 
-### Performance
+## Stage 2: Reranking with jina-reranker-v3
 
-- **Indexing**: ~1ms per document (batched)
-- **Search**: ~10-30ms for 100K vectors
-- **Scales**: Millions of vectors with HNSW
+Precise scoring of candidate documents using [jina-reranker-v3](https://huggingface.co/jinaai/jina-reranker-v3).
 
-## Stage 2: Cross-Encoder Reranking
+### Why jina-reranker-v3?
 
-Precise scoring of candidate documents.
+Selected based on [MTEB Reranking leaderboard](https://huggingface.co/spaces/mteb/leaderboard).
 
 ### How It Works
 
 ```python
-from sentence_transformers import CrossEncoder
+from transformers import AutoModel
 
 class Reranker:
-    def __init__(self, model_name: str = "BAAI/bge-reranker-base"):
-        self.model = CrossEncoder(model_name, max_length=512)
+    def __init__(self, model_name: str = "jinaai/jina-reranker-v3"):
+        self.model = AutoModel.from_pretrained(
+            model_name,
+            torch_dtype="auto",
+            trust_remote_code=True,
+        )
+        self.model.eval()
 
     def rerank(
         self,
@@ -81,54 +84,18 @@ class Reranker:
         documents: list[dict],
         top_k: int | None = None,
     ) -> list[dict]:
-        # Create query-document pairs
-        pairs = [(query, doc["content"]) for doc in documents]
+        contents = [doc["content"] for doc in documents]
+        results = self.model.rerank(query, contents, top_n=top_k)
 
-        # Score all pairs
-        scores = self.model.predict(pairs)
-
-        # Add scores and sort
-        for doc, score in zip(documents, scores):
-            doc["rerank_score"] = float(score)
+        reranked = []
+        for result in results:
+            doc = documents[result["index"]].copy()
+            doc["rerank_score"] = float(result["relevance_score"])
             doc["original_score"] = doc.get("score", 0.0)
+            reranked.append(doc)
 
-        reranked = sorted(documents, key=lambda x: x["rerank_score"], reverse=True)
-
-        return reranked[:top_k] if top_k else reranked
+        return reranked
 ```
-
-### Cross-Encoder Architecture
-
-```mermaid
-flowchart LR
-    subgraph "Cross-Encoder (Precise)"
-        Q2[Query] & D2[Document] --> C[Concatenate]
-        C --> E3[Encoder]
-        E3 --> S[Score]
-    end
-```
-
-**Key Property**: Sees query and document together, enabling deeper understanding.
-
-### Why Cross-Encoders Are Better
-
-| Feature | Bi-Encoder | Cross-Encoder |
-|---------|------------|---------------|
-| Query-doc interaction | None (independent) | Full attention |
-| Semantic matching | Surface level | Deep understanding |
-| Negation handling | Poor | Good |
-| Speed | Fast | Slow |
-
-### Example Improvement
-
-Query: *"Papers that do NOT use transformers"*
-
-| Document | Bi-Encoder | Cross-Encoder |
-|----------|------------|---------------|
-| "We use BERT transformer..." | 0.82 ❌ | 0.15 ✅ |
-| "Our CNN-based approach..." | 0.45 | 0.78 ✅ |
-
-The bi-encoder matches "transformers" lexically; the cross-encoder understands negation.
 
 ## Configuration
 
@@ -151,17 +118,6 @@ class RAGChain:
 | 10 | 3 | Fast | Lower recall |
 | 20 | 5 | **Balanced** | **Good** |
 | 50 | 10 | Slower | Better recall |
-| 100 | 10 | Slow | Diminishing returns |
-
-## Reranker Models
-
-| Model | Size | Quality | Speed |
-|-------|------|---------|-------|
-| `bge-reranker-base` | 278M | Good | ~50ms/20 docs |
-| `bge-reranker-large` | 560M | Better | ~100ms/20 docs |
-| `bge-reranker-v2-m3` | 568M | Best | ~120ms/20 docs |
-
-We use `bge-reranker-base` for good balance.
 
 ## Score Interpretation
 
@@ -175,7 +131,7 @@ Doc 4: 0.71  ← Hard to distinguish
 Doc 5: 0.70
 ```
 
-### After Reranking (Cross-Encoder)
+### After Reranking
 
 ```
 Doc 3: 0.92  ← Actually most relevant!
@@ -186,36 +142,6 @@ Doc 4: 0.23
 ```
 
 The reranker often reorders significantly, catching semantic nuances.
-
-## Evaluation
-
-Compare with and without reranking:
-
-```bash
-uv run python scripts/evaluate_retrieval.py --compare
-```
-
-Output:
-
-```
-============================================================
-WITHOUT RERANKER
-============================================================
-Query: What is retrieval augmented generation?
-  [1] A Survey on Retrieval-Augmented...
-      Score: 0.7823
-  [2] Dense Passage Retrieval...
-      Score: 0.7654
-
-============================================================
-WITH RERANKER
-============================================================
-Query: What is retrieval augmented generation?
-  [1] Retrieval-Augmented Generation for...  ← Different order!
-      Score: 0.9234 (orig: 0.7234)
-  [2] A Survey on Retrieval-Augmented...
-      Score: 0.8912 (orig: 0.7823)
-```
 
 ## Context Formatting
 
@@ -234,20 +160,6 @@ def _format_context(self, results: list[dict]) -> str:
     return "\n\n".join(context_parts)
 ```
 
-Output:
-
-```
-[1] Attention Is All You Need
-    URL: https://arxiv.org/abs/1706.03762
-    Authors: Vaswani et al.
-    Content: The dominant sequence transduction models...
-
-[2] BERT: Pre-training of Deep Bidirectional...
-    URL: https://arxiv.org/abs/1810.04805
-    Authors: Devlin et al.
-    Content: We introduce a new language representation...
-```
-
 ## Future Improvements
 
 ### Hybrid Search
@@ -259,8 +171,6 @@ Combine BM25 (keyword) with semantic search:
 def hybrid_search(query, alpha=0.5):
     semantic_results = vector_search(query)
     keyword_results = bm25_search(query)
-
-    # Fuse rankings
     fused = reciprocal_rank_fusion(semantic_results, keyword_results, alpha)
     return fused
 ```
@@ -273,14 +183,4 @@ Generate related queries for better recall:
 # Use LLM to expand query
 expanded = llm.generate(f"Generate 3 related search queries for: {query}")
 # Search with all queries, deduplicate results
-```
-
-### Learned Sparse Retrieval
-
-Models like SPLADE combine benefits of sparse and dense:
-
-```python
-# SPLADE produces sparse vectors with semantic understanding
-from transformers import AutoModelForMaskedLM
-model = AutoModelForMaskedLM.from_pretrained("naver/splade-cocondenser-ensembledistil")
 ```
